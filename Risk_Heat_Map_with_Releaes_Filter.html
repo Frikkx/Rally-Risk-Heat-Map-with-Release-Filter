@@ -1,0 +1,265 @@
+ <html>
+        <head>
+           <title>Risk Heatmap with Release filter</title>
+
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/heatmap.js"></script>
+<script src="https://code.highcharts.com/modules/accessibility.js"></script>
+<script type="text/javascript" src="/apps/2.1/sdk.js"></script>
+
+    <script type="text/javascript">
+/*Outstanding:
+    1) reload on resized
+    2) Add Release filter
+*/            
+        var sdata = "";
+        var aCellSum =[];
+        Rally.onReady(function() {
+            Ext.define('Rally.RiskHeatMap.ReleaseFilter', {
+                extend: 'Rally.app.App',
+                componentCls: 'app',
+            
+                launch: function() {
+                    this.add({
+                        xtype: 'rallyreleasecombobox',
+                        listeners: {
+                            ready: this._onReleasesLoaded,
+                            select: this._onReleaseChanged,
+                            scope: this
+                        }
+                    });
+                    this.add({
+                        //html: '<div style="width: 100%;height: 100%;"  id="bodyHtml">xxx</div>'
+                        //html: '<div style="width: 100%;height: 100%;"  id="bodyHtml">xxx</div>'
+                        
+                       html: ' <table width="1000px" height="400px"><tr><td width="100%" vertical-align:top"><div  id="bodyHtml"></div></td></tr></table>'
+                    });
+                },
+            
+                _onReleasesLoaded: function() {
+                    
+                     var riskStore = Ext.create('Rally.data.wsapi.Store', {
+                        model: 'Risk',
+                        filters: [
+                                    {
+                                        property: 'State',
+                                        operator: '!=',
+                                        value: 'Closed'
+                                    }
+                                ],
+                        fetch: ['Name', 'State','Impact','Probability'],
+                        autoLoad: true,
+                        listeners: {
+                            load: function(store, records) {
+                                //process records section of the app
+
+                                //prepar the data                        
+                                function prepareData(){
+                                    var  sImpact = "";
+                                    var  sProbability = "";
+
+                                    var  iGridImpact = 0;
+                                    var  iGridProbability = 0;
+                                    var  iGridGrouping = 0;
+
+                                    // fill up aCellSum array
+                                    for(x=0;x<9;x++){
+                                        aCellSum[x] = 0;
+                                    }
+
+
+                                    for(i=0;i<records.length;i++){
+                                        r  = records[i].data; 
+                                        sImpact = r.Impact;
+                                        sProbability = r.Probability;
+                                        //sName = r.name;
+
+                                        if(sImpact == "None"){
+                                            sImpact = '0';
+                                        } 
+
+                                        if(sProbability == "None"){
+                                            sProbability = '0';
+                                        }         
+
+                                        // Impact is grouped into the 3 categories
+
+                                        //Item are grouped by impact 2,3 is medium, 4 and 5 is high and rest is low
+                                        if ((parseInt(sImpact))== 2 || ((parseInt(sImpact))== 3)) {
+                                            iGridImpact = 1;iGridGrouping = 200000; 
+                                        } else if ((parseInt(sImpact))== 4 || ((parseInt(sImpact))== 5)) {
+                                            iGridImpact = 0;iGridGrouping = 100000; 
+                                         } else {   
+                                            iGridImpact = 2; iGridGrouping = 300000;
+                                         }
+
+                                        //Item are grouped by Probability 2,3 is medium, 4 and 5 is high and rest is low
+                                        if ((parseInt(sProbability))== 2 || ((parseInt(sProbability))== 3)) {
+                                            iGridProbability = 1; iGridGrouping = iGridGrouping + 200;
+                                        } else if ((parseInt(sProbability))== 4 || ((parseInt(sProbability))== 5)) {
+                                            iGridProbability = 0; iGridGrouping = iGridGrouping + 100;
+                                         } else {   
+                                            iGridProbability = 2; iGridGrouping = iGridGrouping + 300;
+                                         }
+
+                                        //last grouping to the 9 cells in the heat map/
+                                        switch (parseInt(iGridGrouping)) {    
+                                                  case 100100:
+                                                    aCellSum[2]= aCellSum[2] + 1;
+                                                    break;
+                                                  case 100200:
+                                                    aCellSum[5]= aCellSum[5] + 1;
+                                                    break;
+                                                  case 100300:
+                                                    aCellSum[8]= aCellSum[8] + 1;
+                                                    break;
+                                                  case 200100:
+                                                    aCellSum[1]= aCellSum[1] + 1;
+                                                    break;
+                                                  case 200200:
+                                                    aCellSum[4]= aCellSum[4] + 1;
+                                                    break;
+                                                  case 200300:
+                                                    aCellSum[7]= aCellSum[7] + 1;
+                                                    break;
+                                                  case 300100:
+                                                    aCellSum[0]= aCellSum[0] + 1;
+                                                    break;
+                                                  case 300200:
+                                                    aCellSum[3]= aCellSum[3] + 1;
+                                                    break;
+                                                  case 300300:
+                                                    aCellSum[6]= aCellSum[6] + 1;
+                                                    break;
+                                                }       
+                                }
+                                    //Put together the data into array for the chart
+                                    sdata = [[0,0,aCellSum[0]],[0,1,aCellSum[1]],[0,2,aCellSum[2]],[1,0,aCellSum[3]],[1,1,aCellSum[4]],[1,2,aCellSum[5]],[2,0,aCellSum[6]],[2,1,aCellSum[7]],[2,2,aCellSum[8]]];
+
+                                    showgrid(sdata);
+                                }
+
+                                //used by the heatmap 
+                                function getPointCategoryName(point, dimension) {
+                                    var series = point.series,
+                                        isY = dimension === 'y',
+                                        axis = series[isY ? 'yAxis' : 'xAxis'];
+                                    return axis.categories[point[isY ? 'y' : 'x']];
+                                }
+
+                                //construct the heatmap with the data
+                                function showgrid(sdata){    
+                                    //Add in the innerHTML
+                                    document.getElementById("bodyHtml").innerHTML = '<div id="container" style="width:100%; height:400px;">xx</div>';
+                                 //   document.addEventListener('DOMContentLoaded', function () {
+                                        const chart = Highcharts.chart('container', {
+                                            chart: {
+                                                type: 'heatmap'
+                                            },
+                                            title: {
+                                                text: 'Open Risks'
+                                            },
+                                            xAxis: {
+                                            categories: ['High Probability', 'Medium Probability', 'Low Probability'],
+                                                    title: 'Probability',
+                                                    reversed: true
+
+                                                        },
+                                                        yAxis: {
+                                                            categories: ['Low Impact', 'Medium Impact', 'High Impact']
+                                                        }
+                                                        ,
+                                             colorAxis: {
+                                                    min: 0,
+                                                    minColor: '#FFFFFF',
+                                                    maxColor: '#BB606D' //Highcharts.getOptions().colors[0]
+                                                },
+
+                                            legend: {
+                                                align: 'right',
+                                                layout: 'vertical',
+                                                margin: 0,
+                                                verticalAlign: 'top',
+                                                y: 25,
+                                                reversed:true,
+                                                symbolHeight: 280
+                                            },
+                                            tooltip: {
+                                                    formatter: function () {
+                                                        return '<b>' + this.point.value + '</b> ' + getPointCategoryName(this.point, 'y') + ' / '  + getPointCategoryName(this.point, 'x');
+                                                    }
+                                                },
+                                              series: [{
+                                                    name: 'Open Risks',
+                                                    borderWidth: 1,      
+                                                    data:sdata,
+                                                  //mock up data: [[0,0,8],[0,1,0],[0,2,3],[1,0,0],[1,1,1],[1,2,2],[2,0,0],[2,1,1],[2,2,0]], 
+                                                    dataLabels: {
+                                                        enabled: true,
+                                                        color: '#000000'
+                                                    }
+                                                }]
+                                    });
+    }
+
+                                //call to prepardata
+                                prepareData();
+
+                            }
+                        }
+                    });
+                    
+/*                    Ext.create('Rally.data.wsapi.TreeStoreBuilder').build({
+                        models: ['userstory', 'defect', 'defectsuite', 'testset'],
+                        autoLoad: true,
+                        enableHierarchy: true,
+                        filters: [this._getReleaseFilter()]
+                    }).then({
+                        success: this._onStoreBuilt,
+                        scope: this
+                    });
+*/
+                },
+            
+                _onStoreBuilt: function(store) {
+/*                    this.add({
+                        margin: '10px 0 0 0',
+                        xtype: 'rallytreegrid',
+                        store: store,
+                        context: this.getContext(),
+                        columnCfgs: [
+                            'Name',
+                            'ScheduleState',
+                            'Owner',
+                            'PlanEstimate'
+                        ]
+                    });
+*/
+                },
+            
+                _onReleaseChanged: function() {
+                    var treeGrid = this.down('rallytreegrid'),
+                        treeStore = treeGrid.getStore();
+            
+                    treeStore.clearFilter(true);
+                    treeStore.filter(this._getReleaseFilter());
+                },
+            
+                _getReleaseFilter: function() {
+                    return this.down('rallyreleasecombobox').getQueryFromSelected();
+                }
+            });
+            
+
+            Rally.launchApp('Rally.RiskHeatMap.ReleaseFilter', {
+              name: 'Rally RiskHeatMap ReleaseFilter'
+            });
+        });
+</script>
+        </head>
+        <body>
+            
+<!--            <div id="bodyHtml"></div>-->
+    
+        </body>
+</html>
