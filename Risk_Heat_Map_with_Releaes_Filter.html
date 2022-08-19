@@ -7,13 +7,10 @@
 <script src="https://code.highcharts.com/modules/accessibility.js"></script>
 <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
 
-    <script type="text/javascript">
-/*Outstanding:
-    1) reload on resized
-    2) Add Release filter
-*/            
+    <script type="text/javascript">         
         var sdata = "";
         var aCellSum =[];
+        var riskStore ;
         Rally.onReady(function() {
             Ext.define('Rally.RiskHeatMap.ReleaseFilter', {
                 extend: 'Rally.app.App',
@@ -28,17 +25,14 @@
                             scope: this
                         }
                     });
-                    this.add({
-                        //html: '<div style="width: 100%;height: 100%;"  id="bodyHtml">xxx</div>'
-                        //html: '<div style="width: 100%;height: 100%;"  id="bodyHtml">xxx</div>'
-                        
-                       html: ' <table width="1000px" height="400px"><tr><td width="100%" vertical-align:top"><div  id="bodyHtml"></div></td></tr></table>'
+                    this.add({                        
+                       html: ' <table width="100%" height="500px"><tr><td width="100%" vertical-align:top"><div id="container" style="width:100%; height:400px;"></div></td></tr></table>'
                     });
                 },
             
                 _onReleasesLoaded: function() {
                     
-                     var riskStore = Ext.create('Rally.data.wsapi.Store', {
+                     riskStore = Ext.create('Rally.data.wsapi.Store', {
                         model: 'Risk',
                         filters: [
                                     {
@@ -149,9 +143,6 @@
 
                                 //construct the heatmap with the data
                                 function showgrid(sdata){    
-                                    //Add in the innerHTML
-                                    document.getElementById("bodyHtml").innerHTML = '<div id="container" style="width:100%; height:400px;">xx</div>';
-                                 //   document.addEventListener('DOMContentLoaded', function () {
                                         const chart = Highcharts.chart('container', {
                                             chart: {
                                                 type: 'heatmap'
@@ -160,14 +151,15 @@
                                                 text: 'Open Risks'
                                             },
                                             xAxis: {
-                                            categories: ['High Probability', 'Medium Probability', 'Low Probability'],
+                                                    categories: ['High Probability', 'Medium Probability', 'Low Probability'],
                                                     title: 'Probability',
                                                     reversed: true
 
                                                         },
-                                                        yAxis: {
-                                                            categories: ['Low Impact', 'Medium Impact', 'High Impact']
-                                                        }
+                                             yAxis: {
+                                                    categories: ['Low Impact', 'Medium Impact', 'High Impact'],
+                                                    title: 'Impact'
+                                                    }
                                                         ,
                                              colorAxis: {
                                                     min: 0,
@@ -200,7 +192,7 @@
                                                     }
                                                 }]
                                     });
-    }
+                                }
 
                                 //call to prepardata
                                 prepareData();
@@ -208,41 +200,13 @@
                             }
                         }
                     });
-                    
-/*                    Ext.create('Rally.data.wsapi.TreeStoreBuilder').build({
-                        models: ['userstory', 'defect', 'defectsuite', 'testset'],
-                        autoLoad: true,
-                        enableHierarchy: true,
-                        filters: [this._getReleaseFilter()]
-                    }).then({
-                        success: this._onStoreBuilt,
-                        scope: this
-                    });
-*/
+
                 },
-            
-                _onStoreBuilt: function(store) {
-/*                    this.add({
-                        margin: '10px 0 0 0',
-                        xtype: 'rallytreegrid',
-                        store: store,
-                        context: this.getContext(),
-                        columnCfgs: [
-                            'Name',
-                            'ScheduleState',
-                            'Owner',
-                            'PlanEstimate'
-                        ]
-                    });
-*/
-                },
-            
+           
                 _onReleaseChanged: function() {
-                    var treeGrid = this.down('rallytreegrid'),
-                        treeStore = treeGrid.getStore();
             
-                    treeStore.clearFilter(true);
-                    treeStore.filter(this._getReleaseFilter());
+                    riskStore.clearFilter(true);
+                    riskStore.filter(this._getReleaseFilter());
                 },
             
                 _getReleaseFilter: function() {
@@ -258,8 +222,5 @@
 </script>
         </head>
         <body>
-            
-<!--            <div id="bodyHtml"></div>-->
-    
         </body>
 </html>
